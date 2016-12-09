@@ -51,8 +51,8 @@ square count spacing z =
             (line count spacing z)
 
 
-pcube : Int -> Float -> List Vertex
-pcube count spacing =
+filledCube : Int -> Float -> List Vertex
+filledCube count spacing =
     List.range (negate (count // 2)) (count // 2)
         |> List.map (\z -> (toFloat z) * spacing)
         |> List.concatMap
@@ -84,3 +84,43 @@ cylinder count rows radius spacing =
 --randomCloud count =
 --    List.range 0 count
 --        |> List.map (\z -> Vertex gl_orange (vec3 randomFloat.generate randomFloat.generate randomFloat.generate))
+
+
+face : Color -> Vec3 -> Vec3 -> Vec3 -> Vec3 -> List ( Vertex, Vertex, Vertex )
+face rawColor a b c d =
+    let
+        color =
+            colorToVec3 rawColor
+
+        vertex position =
+            Vertex color position
+    in
+        [ ( vertex a, vertex b, vertex c )
+        , ( vertex c, vertex d, vertex a )
+        ]
+
+
+trianglePoints : Float -> List Vertex
+trianglePoints pos =
+    [ Vertex (vec3 1 0.5 0) (vec3 pos 0 0)
+    , Vertex (vec3 1 1 0) (vec3 0 pos 0)
+    , Vertex (vec3 1 -1 0) (vec3 0 0 pos)
+    ]
+
+
+crossPoints : List Vertex
+crossPoints =
+    (List.range -30 30)
+        |> List.concatMap
+            (\n -> trianglePoints (toFloat n / 10.0))
+
+
+geometries : List (List Vertex)
+geometries =
+    [ trianglePoints 1
+    , crossPoints
+    , filledCube 10 0.2
+    , circle 30 1 0
+    , cylinder 30 10 1 0.2
+      --, randomCloud 100
+    ]

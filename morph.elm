@@ -12,6 +12,8 @@ import Window
 import Task
 import Basics exposing (negate)
 import Geometry exposing (..)
+import Array
+import Random
 
 
 -- MODEL
@@ -21,11 +23,13 @@ type Action
     = TextureError Error
     | Animate Time
     | Resize Window.Size
+    | PickedRandom Int
 
 
 type alias Model =
     { size : Window.Size
     , theta : Float
+    , geometry : Maybe (List Vertex)
     }
 
 
@@ -33,9 +37,13 @@ type alias Model =
 -- INIT
 
 
+randomGeometryIndex =
+    Random.int 0 ((List.length geometries) - 1)
+
+
 init : ( Model, Cmd Action )
 init =
-    ( Model (Window.Size 0 0) 0
+    ( Model (Window.Size 0 0) 0 Nothing
       -- does the batch order matter? used to be tho other way in the example
     , Cmd.batch
         [ Task.perform Resize Window.size
@@ -49,6 +57,7 @@ init =
           --                              Ok val ->
           --                                  TextureLoaded val
           --                      )
+        , Random.generate PickedRandom randomGeometryIndex
         ]
     )
 
@@ -84,10 +93,13 @@ update action model =
             ( model, Cmd.none )
 
         Animate dt ->
-            ( { model | theta = model.theta + dt / 5000 }, Cmd.none )
+            ( { model | theta = model.theta + dt / 1000 }, Cmd.none )
 
         Resize size ->
             ( { model | size = size }, Cmd.none )
+
+        PickedRandom index ->
+            ( { model | geometry = Array.get index (Array.fromList geometries) }, Cmd.none )
 
 
 main : Program Never Model Action
@@ -102,6 +114,15 @@ main =
 
 
 -- MESHES - create a cube in which each vertex has a position and color
+
+
+wireFrame : Drawable Vertex
+wireFrame =
+    LineLoop
+        [ Vertex (vec3 1 0.5 0) (vec3 2 0 0)
+        , Vertex (vec3 2 2 0) (vec3 0 2 0)
+        , Vertex (vec3 2 -2 0) (vec3 0 0 2)
+        ]
 
 
 cube : Drawable Vertex
@@ -151,29 +172,6 @@ cube =
             ]
 
 
-face : Color -> Vec3 -> Vec3 -> Vec3 -> Vec3 -> List ( Vertex, Vertex, Vertex )
-face rawColor a b c d =
-    let
-        color =
-            colorToVec3 rawColor
-
-        vertex position =
-            Vertex color position
-    in
-        [ ( vertex a, vertex b, vertex c )
-        , ( vertex c, vertex d, vertex a )
-        ]
-
-
-wireFrame : Drawable Vertex
-wireFrame =
-    LineLoop
-        [ Vertex (vec3 1 0.5 0) (vec3 2 0 0)
-        , Vertex (vec3 2 2 0) (vec3 0 2 0)
-        , Vertex (vec3 2 -2 0) (vec3 0 0 2)
-        ]
-
-
 triangle : Drawable Vertex
 triangle =
     case (trianglePoints 1) of
@@ -189,39 +187,20 @@ triangle =
             Points []
 
 
-trianglePoints : Float -> List Vertex
-trianglePoints pos =
-    [ Vertex (vec3 1 0.5 0) (vec3 pos 0 0)
-    , Vertex (vec3 1 1 0) (vec3 0 pos 0)
-    , Vertex (vec3 1 -1 0) (vec3 0 0 pos)
-    ]
-
-
-crossPoints : List Vertex
-crossPoints =
-    (List.range -30 30)
-        |> List.concatMap
-            (\n -> trianglePoints (toFloat n / 10.0))
-
-
-pointTriange : Float -> Drawable Vertex
-pointTriange pos =
-    Points (trianglePoints pos)
-
-
+allPoints : List Vertex
 allPoints =
     List.concat
-        [ crossPoints
-          --, pcube 10 0.2
-          --, circle 30 1 0
-        , cylinder 30 10 1 0.2
-          --, randomCloud 100
-        ]
+        geometries
+
+
+drawable : Model -> Drawable Vertex
+drawable model =
+    Points (Maybe.withDefault [] model.geometry)
 
 
 scene : Model -> List Renderable
 scene model =
-    [ render vertexShader fragmentShader (Points allPoints) (uniforms model)
+    [ render vertexShader fragmentShader (drawable model) (uniforms model)
       --, render vertexShader fragmentShader wireFrame (uniforms model)
       --, render vertexShader fragmentShader triangle (uniforms model)
     ]
@@ -229,7 +208,7 @@ scene model =
 
 uniforms : Model -> { rotation : Mat4, perspective : Mat4, camera : Mat4, shade : Float }
 uniforms model =
-    { rotation = mul (makeRotate (3 * model.theta) (vec3 0 1 0)) (makeRotate (2 * model.theta) (vec3 1 0 0))
+    { rotation = mul (makeRotate (0.3 * model.theta) (vec3 0 1 0)) (makeRotate (0.3 * model.theta) (vec3 1 0 0))
     , perspective = makePerspective 45 (toFloat model.size.width / toFloat model.size.height) 0.01 100
     , camera = makeLookAt (vec3 0 0 5) (vec3 0 0 0) (vec3 0 1 0)
     , shade = 0.8
