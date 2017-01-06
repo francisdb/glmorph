@@ -3,8 +3,9 @@ module Main exposing (..)
 import Color exposing (..)
 import Math.Vector3 exposing (vec3, Vec3)
 import Math.Matrix4 exposing (..)
-import WebGL exposing (..)
+import Math.Matrix4 as Mat4 exposing (Mat4)
 import Html
+import Html exposing (Html)
 import AnimationFrame
 import Html.Attributes exposing (width, height)
 import Time exposing (Time)
@@ -13,14 +14,24 @@ import Task
 import Basics exposing (negate)
 import Geometry exposing (..)
 import Array
-import Random
+import WebGL.Texture as Texture exposing (Error, Texture)
+import WebGL exposing (Mesh, Shader, Entity, lineLoop, points, triangles)
+import WebGL.Settings.Blend as Blend
+import WebGL.Settings.DepthTest as DepthTest
+import WebGL.Settings.StencilTest as StencilTest
+import WebGL.Texture as Texture exposing (Error, Texture)
+
+
+-- import Random <- totally borked
+
+import Random.Pcg as Random
 
 
 -- MODEL
 
 
 type Action
-    = TextureError Error
+    = TextureLoaded (Result Error Texture)
     | Animate Time
     | Resize Window.Size
     | PickedRandom Int
@@ -30,6 +41,7 @@ type alias Model =
     { size : Window.Size
     , theta : Float
     , geometry : Maybe (List Vertex)
+    , texture : Maybe Texture
     }
 
 
@@ -43,20 +55,11 @@ randomGeometryIndex =
 
 init : ( Model, Cmd Action )
 init =
-    ( Model (Window.Size 0 0) 0 Nothing
+    ( Model (Window.Size 0 0) 0 Nothing Nothing
       -- does the batch order matter? used to be tho other way in the example
     , Cmd.batch
         [ Task.perform Resize Window.size
-          --              ,loadTexture "texture/woodCrate.jpg"
-          --                  |> Task.attempt
-          --                      (\result ->
-          --                          case result of
-          --                              Err err ->
-          --                                  TextureError err
-          --
-          --                              Ok val ->
-          --                                  TextureLoaded val
-          --                      )
+          --, Task.attempt TextureLoaded (Texture.load "texture/wood-crate.jpg")
         , Random.generate PickedRandom randomGeometryIndex
         ]
     )
@@ -66,7 +69,7 @@ init =
 -- VIEW
 
 
-view : Model -> Html.Html Action
+view : Model -> Html Action
 view model =
     WebGL.toHtml
         [ width model.size.width
@@ -74,6 +77,14 @@ view model =
         , Html.Attributes.style [ ( "display", "block" ), ( "background-color", "#202" ) ]
         ]
         (scene model)
+
+
+type alias Uniforms =
+    { rotation : Mat4
+    , perspective : Mat4
+    , camera : Mat4
+    , shade : Float
+    }
 
 
 subscriptions : Model -> Sub Action
@@ -89,8 +100,8 @@ subscriptions model =
 update : Action -> Model -> ( Model, Cmd Action )
 update action model =
     case action of
-        TextureError err ->
-            ( model, Cmd.none )
+        TextureLoaded textureResult ->
+            ( { model | texture = Result.toMaybe textureResult }, Cmd.none )
 
         Animate dt ->
             ( { model | theta = model.theta + dt / 1000 }, Cmd.none )
@@ -116,16 +127,16 @@ main =
 -- MESHES - create a cube in which each vertex has a position and color
 
 
-wireFrame : Drawable Vertex
+wireFrame : Mesh Vertex
 wireFrame =
-    LineLoop
+    lineLoop
         [ Vertex (vec3 1 0.5 0) (vec3 2 0 0)
         , Vertex (vec3 2 2 0) (vec3 0 2 0)
         , Vertex (vec3 2 -2 0) (vec3 0 0 2)
         ]
 
 
-cube : Drawable Vertex
+cube : Mesh Vertex
 cube =
     let
         rft =
@@ -154,7 +165,7 @@ cube =
         lbb =
             vec3 -1 -1 -1
     in
-        Triangle
+        WebGL.triangles
             << List.concat
         <|
             [ face green rft rfb rbb rbt
@@ -172,11 +183,11 @@ cube =
             ]
 
 
-triangle : Drawable Vertex
+triangle : Mesh Vertex
 triangle =
     case (trianglePoints 1) of
         [ first, second, third ] ->
-            Triangle
+            WebGL.triangles
                 [ ( first
                   , second
                   , third
@@ -184,7 +195,7 @@ triangle =
                 ]
 
         _ ->
-            Points []
+            points []
 
 
 allPoints : List Vertex
@@ -193,20 +204,20 @@ allPoints =
         geometries
 
 
-drawable : Model -> Drawable Vertex
+drawable : Model -> Mesh Vertex
 drawable model =
-    Points (Maybe.withDefault [] model.geometry)
+    points (Maybe.withDefault [] model.geometry)
 
 
-scene : Model -> List Renderable
+scene : Model -> List Entity
 scene model =
-    [ render vertexShader fragmentShader (drawable model) (uniforms model)
+    [ WebGL.entity vertexShader fragmentShader (drawable model) (uniforms model)
       --, render vertexShader fragmentShader wireFrame (uniforms model)
       --, render vertexShader fragmentShader triangle (uniforms model)
     ]
 
 
-uniforms : Model -> { rotation : Mat4, perspective : Mat4, camera : Mat4, shade : Float }
+uniforms : Model -> Uniforms
 uniforms model =
     { rotation = mul (makeRotate (0.3 * model.theta) (vec3 0 1 0)) (makeRotate (0.3 * model.theta) (vec3 1 0 0))
     , perspective = makePerspective 45 (toFloat model.size.width / toFloat model.size.height) 0.01 100
@@ -219,7 +230,7 @@ uniforms model =
 -- SHADERS
 
 
-vertexShader : Shader { attr | position : Vec3, color : Vec3 } { unif | rotation : Mat4, perspective : Mat4, camera : Mat4 } { vcolor : Vec3, zshade : Float }
+vertexShader : Shader { attr | position : Vec3, color : Vec3 } Uniforms { vcolor : Vec3, zshade : Float }
 vertexShader =
     [glsl|
 
@@ -240,7 +251,7 @@ void main () {
 |]
 
 
-fragmentShader : Shader {} { u | shade : Float } { vcolor : Vec3, zshade : Float }
+fragmentShader : Shader {} Uniforms { vcolor : Vec3, zshade : Float }
 fragmentShader =
     [glsl|
 
