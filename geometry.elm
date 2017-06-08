@@ -76,6 +76,10 @@ cylinder count rows radius spacing =
 
 
 
+-- TODO recursive sphere
+-- TODO spiral
+-- TODO sphere using circles
+-- TODO random cloud
 --floatList : Random.Generator (List Float)
 --floatList =
 --    Random.list 10 (Random.float 0 1)
@@ -117,10 +121,12 @@ crossPoints =
 
 geometries : List (List Vertex)
 geometries =
-    [ trianglePoints 1
-    , crossPoints
+    [ crossPoints
     , filledCube 10 0.2
-    , circle 30 1 0
+
+    --, circle 30 1 0
     , cylinder 30 10 1 0.2
-      --, randomCloud 100
+
+    --, trianglePoints 1
+    --, randomCloud 100
     ]

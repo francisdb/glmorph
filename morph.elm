@@ -1,9 +1,11 @@
 module Main exposing (..)
 
+import General exposing (zipFill)
 import Color exposing (..)
-import Math.Vector3 exposing (vec3, Vec3)
-import Math.Matrix4 exposing (..)
+import Math.Vector3 exposing (vec3, Vec3, sub, scale, add)
+import Math.Matrix4 exposing (mul, makeRotate, makePerspective, makeLookAt)
 import Math.Matrix4 as Mat4 exposing (Mat4)
+import MathExt exposing (mix)
 import Html
 import Html exposing (Html)
 import AnimationFrame
@@ -33,7 +35,7 @@ import Random.Pcg as Random
 -- MODEL
 
 
-type Action
+type Msg
     = TextureLoaded (Result Error Texture)
     | Animate Time
     | Resize Window.Size
@@ -44,7 +46,9 @@ type Action
 type alias Model =
     { size : Window.Size
     , theta : Float
-    , geometry : Maybe (List Vertex)
+    , morphStage : Float
+    , source : List Vertex
+    , destination : List Vertex
     , texture : Maybe Texture
     }
 
@@ -57,9 +61,9 @@ randomGeometryIndex =
     Random.int 0 ((List.length geometries) - 1)
 
 
-init : ( Model, Cmd Action )
+init : ( Model, Cmd Msg )
 init =
-    ( Model (Window.Size 0 0) 0 Nothing Nothing
+    ( Model (Window.Size 0 0) 0 0 [] [] Nothing
       -- does the batch order matter? used to be tho other way in the example
     , Cmd.batch
         [ Task.perform Resize Window.size
@@ -74,7 +78,7 @@ init =
 -- VIEW
 
 
-view : Model -> Html Action
+view : Model -> Html Msg
 view model =
     WebGL.toHtml
         [ width model.size.width
@@ -96,7 +100,7 @@ type alias Uniforms =
 -- SUBSCRIPTIONS
 
 
-subscriptions : Model -> Sub Action
+subscriptions : Model -> Sub Msg
 subscriptions model =
     [ AnimationFrame.diffs Animate
 
@@ -108,20 +112,39 @@ subscriptions model =
         |> Sub.batch
 
 
-update : Action -> Model -> ( Model, Cmd Action )
+update : Msg -> Model -> ( Model, Cmd Msg )
 update action model =
     case action of
         TextureLoaded textureResult ->
             ( { model | texture = Result.toMaybe textureResult }, Cmd.none )
 
         Animate dt ->
-            ( { model | theta = model.theta + dt / 1000 }, Cmd.none )
+            let
+                theta =
+                    model.theta + dt / 1000
+
+                morphStage =
+                    min 1 (model.morphStage + dt / 2000)
+
+                cmd =
+                    if morphStage == 1 then
+                        Random.generate PickedRandom randomGeometryIndex
+                    else
+                        Cmd.none
+            in
+                ( { model | theta = theta, morphStage = morphStage }, cmd )
 
         Resize size ->
             ( { model | size = size }, Cmd.none )
 
         PickedRandom index ->
-            ( { model | geometry = Array.get index (Array.fromList geometries) }, Cmd.none )
+            let
+                -- TODO exclude current geometry
+                -- TODO we might want to shuffle the points first
+                destination =
+                    Maybe.withDefault [] (Array.get index (Array.fromList geometries))
+            in
+                ( { model | source = model.destination, destination = destination, morphStage = 0 }, Cmd.none )
 
         Presses code ->
             case code of
@@ -132,7 +155,7 @@ update action model =
                     ( model, Cmd.none )
 
 
-main : Program Never Model Action
+main : Program Never Model Msg
 main =
     Html.program
         { init = init
@@ -229,9 +252,34 @@ allPoints =
         geometries
 
 
+defaultColor =
+    gl_red
+
+
+morphVertex : Float -> Vertex -> Vertex -> Vertex
+morphVertex interpolation v1 v2 =
+    let
+        position =
+            mix interpolation v1.position v2.position
+
+        -- TODO interpolate colors
+    in
+        Vertex v1.color position
+
+
+morph : Float -> List Vertex -> List Vertex -> List Vertex
+morph interpolation source destination =
+    let
+        zipped =
+            -- we want this randomized
+            zipFill (\() -> Vertex defaultColor (vec3 0 0 0)) source destination
+    in
+        List.map (\( a, b ) -> morphVertex interpolation a b) zipped
+
+
 drawable : Model -> Mesh Vertex
 drawable model =
-    points (Maybe.withDefault [] model.geometry)
+    points (morph model.morphStage model.source model.destination)
 
 
 scene : Model -> List Entity
