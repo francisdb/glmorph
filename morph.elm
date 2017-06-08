@@ -20,6 +20,9 @@ import WebGL.Settings.Blend as Blend
 import WebGL.Settings.DepthTest as DepthTest
 import WebGL.Settings.StencilTest as StencilTest
 import WebGL.Texture as Texture exposing (Error, Texture)
+import Keyboard exposing (..)
+import Char exposing (fromCode)
+import Debug as Debug
 
 
 -- import Random <- totally borked
@@ -35,6 +38,7 @@ type Action
     | Animate Time
     | Resize Window.Size
     | PickedRandom Int
+    | Presses Char
 
 
 type alias Model =
@@ -59,7 +63,8 @@ init =
       -- does the batch order matter? used to be tho other way in the example
     , Cmd.batch
         [ Task.perform Resize Window.size
-          --, Task.attempt TextureLoaded (Texture.load "texture/wood-crate.jpg")
+
+        --, Task.attempt TextureLoaded (Texture.load "texture/wood-crate.jpg")
         , Random.generate PickedRandom randomGeometryIndex
         ]
     )
@@ -87,12 +92,18 @@ type alias Uniforms =
     }
 
 
+
+-- SUBSCRIPTIONS
+
+
 subscriptions : Model -> Sub Action
 subscriptions model =
     [ AnimationFrame.diffs Animate
-      --        , Keyboard.downs (keyChange True)
-      --        , Keyboard.ups (keyChange False)
+
+    --        , Keyboard.downs (keyChange True)
+    --        , Keyboard.ups (keyChange False)
     , Window.resizes Resize
+    , Keyboard.presses (\code -> Presses (fromCode code))
     ]
         |> Sub.batch
 
@@ -111,6 +122,14 @@ update action model =
 
         PickedRandom index ->
             ( { model | geometry = Array.get index (Array.fromList geometries) }, Cmd.none )
+
+        Presses code ->
+            case code of
+                ' ' ->
+                    ( model, Random.generate PickedRandom randomGeometryIndex )
+
+                _ ->
+                    ( model, Cmd.none )
 
 
 main : Program Never Model Action
@@ -169,17 +188,23 @@ cube =
             << List.concat
         <|
             [ face green rft rfb rbb rbt
-              -- right
+
+            -- right
             , face blue rft rfb lfb lft
-              -- front
+
+            -- front
             , face yellow rft lft lbt rbt
-              -- top
+
+            -- top
             , face red rfb lfb lbb rbb
-              -- bottom
+
+            -- bottom
             , face purple lft lfb lbb lbt
-              -- left
+
+            -- left
             , face orange rbt rbb lbb lbt
-              -- back
+
+            -- back
             ]
 
 
@@ -212,8 +237,9 @@ drawable model =
 scene : Model -> List Entity
 scene model =
     [ WebGL.entity vertexShader fragmentShader (drawable model) (uniforms model)
-      --, render vertexShader fragmentShader wireFrame (uniforms model)
-      --, render vertexShader fragmentShader triangle (uniforms model)
+
+    --, render vertexShader fragmentShader wireFrame (uniforms model)
+    --, render vertexShader fragmentShader triangle (uniforms model)
     ]
 
 
