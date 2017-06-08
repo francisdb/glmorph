@@ -3,9 +3,10 @@ module Main exposing (..)
 import General exposing (zipFill)
 import Color exposing (..)
 import Math.Vector3 exposing (vec3, Vec3, sub, scale, add)
+import Math.Vector4 exposing (vec4, Vec4, setW, getW)
 import Math.Matrix4 exposing (mul, makeRotate, makePerspective, makeLookAt)
 import Math.Matrix4 as Mat4 exposing (Mat4)
-import MathExt exposing (mix)
+import MathExt exposing (mix, mixColor)
 import Html
 import Html exposing (Html)
 import AnimationFrame
@@ -25,6 +26,7 @@ import WebGL.Texture as Texture exposing (Error, Texture)
 import Keyboard exposing (..)
 import Char exposing (fromCode)
 import Debug as Debug
+import Morph exposing (morph)
 
 
 -- import Random <- totally borked
@@ -165,118 +167,6 @@ main =
         }
 
 
-
--- MESHES - create a cube in which each vertex has a position and color
-
-
-wireFrame : Mesh Vertex
-wireFrame =
-    lineLoop
-        [ Vertex (vec3 1 0.5 0) (vec3 2 0 0)
-        , Vertex (vec3 2 2 0) (vec3 0 2 0)
-        , Vertex (vec3 2 -2 0) (vec3 0 0 2)
-        ]
-
-
-cube : Mesh Vertex
-cube =
-    let
-        rft =
-            vec3 1 1 1
-
-        -- right, front, top
-        lft =
-            vec3 -1 1 1
-
-        -- left,  front, top
-        lbt =
-            vec3 -1 -1 1
-
-        rbt =
-            vec3 1 -1 1
-
-        rbb =
-            vec3 1 -1 -1
-
-        rfb =
-            vec3 1 1 -1
-
-        lfb =
-            vec3 -1 1 -1
-
-        lbb =
-            vec3 -1 -1 -1
-    in
-        WebGL.triangles
-            << List.concat
-        <|
-            [ face green rft rfb rbb rbt
-
-            -- right
-            , face blue rft rfb lfb lft
-
-            -- front
-            , face yellow rft lft lbt rbt
-
-            -- top
-            , face red rfb lfb lbb rbb
-
-            -- bottom
-            , face purple lft lfb lbb lbt
-
-            -- left
-            , face orange rbt rbb lbb lbt
-
-            -- back
-            ]
-
-
-triangle : Mesh Vertex
-triangle =
-    case (trianglePoints 1) of
-        [ first, second, third ] ->
-            WebGL.triangles
-                [ ( first
-                  , second
-                  , third
-                  )
-                ]
-
-        _ ->
-            points []
-
-
-allPoints : List Vertex
-allPoints =
-    List.concat
-        geometries
-
-
-defaultColor =
-    gl_red
-
-
-morphVertex : Float -> Vertex -> Vertex -> Vertex
-morphVertex interpolation v1 v2 =
-    let
-        position =
-            mix interpolation v1.position v2.position
-
-        -- TODO interpolate colors
-    in
-        Vertex v1.color position
-
-
-morph : Float -> List Vertex -> List Vertex -> List Vertex
-morph interpolation source destination =
-    let
-        zipped =
-            -- we want this randomized
-            zipFill (\() -> Vertex defaultColor (vec3 0 0 0)) source destination
-    in
-        List.map (\( a, b ) -> morphVertex interpolation a b) zipped
-
-
 drawable : Model -> Mesh Vertex
 drawable model =
     points (morph model.morphStage model.source model.destination)
@@ -287,7 +177,6 @@ scene model =
     [ WebGL.entity vertexShader fragmentShader (drawable model) (uniforms model)
 
     --, render vertexShader fragmentShader wireFrame (uniforms model)
-    --, render vertexShader fragmentShader triangle (uniforms model)
     ]
 
 
@@ -296,7 +185,7 @@ uniforms model =
     { rotation = mul (makeRotate (0.3 * model.theta) (vec3 0 1 0)) (makeRotate (0.3 * model.theta) (vec3 1 0 0))
     , perspective = makePerspective 45 (toFloat model.size.width / toFloat model.size.height) 0.01 100
     , camera = makeLookAt (vec3 0 0 5) (vec3 0 0 0) (vec3 0 1 0)
-    , shade = 0.8
+    , shade = 0.9
     }
 
 
@@ -304,37 +193,37 @@ uniforms model =
 -- SHADERS
 
 
-vertexShader : Shader { attr | position : Vec3, color : Vec3 } Uniforms { vcolor : Vec3, zshade : Float }
+vertexShader : Shader { attr | position : Vec3, color : Vec4 } Uniforms { vcolor : Vec4, zshade : Float }
 vertexShader =
     [glsl|
 
 attribute vec3 position;
-attribute vec3 color;
+attribute vec4 color;
 uniform mat4 perspective;
 uniform mat4 camera;
 uniform mat4 rotation;
-varying vec3 vcolor;
+varying vec4 vcolor;
 varying float zshade;
 void main () {
     gl_Position = perspective * camera * rotation * vec4(position, 1.0);
     vcolor = color;
     zshade = ((rotation * vec4(position, 1.0)).z + 1.5 ) * 0.3;
-    gl_PointSize = zshade * 8.0;
+    gl_PointSize = zshade * 9.0;
 }
 
 |]
 
 
-fragmentShader : Shader {} Uniforms { vcolor : Vec3, zshade : Float }
+fragmentShader : Shader {} Uniforms { vcolor : Vec4, zshade : Float }
 fragmentShader =
     [glsl|
 
 precision mediump float;
 uniform float shade;
-varying vec3 vcolor;
+varying vec4 vcolor;
 varying float zshade;
 void main () {
-    gl_FragColor = shade * zshade * vec4(vcolor, 1.0);
+    gl_FragColor = shade * zshade * vcolor;
 }
 
 |]

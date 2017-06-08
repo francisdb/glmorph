@@ -19,7 +19,7 @@ zip xs ys =
             []
 
 
-zipFill : (() -> a) -> List a -> List a -> List ( a, a )
+zipFill : (( Maybe a, Maybe a ) -> a) -> List a -> List a -> List ( a, a )
 zipFill filler xs ys =
     -- this could probably be smarter
     let
@@ -31,10 +31,10 @@ zipFill filler xs ys =
                 ( x, y ) :: zip xtail ytail
 
             ( [], y :: ytail ) ->
-                ( filler (), y ) :: zip [] ytail
+                ( filler ( Nothing, Just y ), y ) :: zip [] ytail
 
             ( x :: xtail, [] ) ->
-                ( x, filler () ) :: zip xtail []
+                ( x, filler ( Just x, Nothing ) ) :: zip xtail []
 
             ( _, _ ) ->
                 []

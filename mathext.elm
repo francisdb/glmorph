@@ -1,6 +1,7 @@
-module MathExt exposing (mix)
+module MathExt exposing (mix, mixColor)
 
-import Math.Vector3 exposing (Vec3, vec3, sub, scale, add)
+import Math.Vector3 as V3
+import Math.Vector4 as V4
 
 
 -- we could probably do the morphing inside the shader to get better performance
@@ -8,10 +9,19 @@ import Math.Vector3 exposing (Vec3, vec3, sub, scale, add)
 -- https://math.stackexchange.com/questions/105400/linear-interpolation-in-3-dimensions
 
 
-mix : Float -> Vec3 -> Vec3 -> Vec3
+mix : Float -> V3.Vec3 -> V3.Vec3 -> V3.Vec3
 mix interpolation v1 v2 =
     let
         direction =
-            sub v2 v1
+            V3.sub v2 v1
     in
-        add v1 (scale interpolation direction)
+        V3.add v1 (V3.scale interpolation direction)
+
+
+mixColor : Float -> V4.Vec4 -> V4.Vec4 -> V4.Vec4
+mixColor interpolation v1 v2 =
+    let
+        direction =
+            V4.sub v2 v1
+    in
+        V4.add v1 (V4.scale interpolation direction)

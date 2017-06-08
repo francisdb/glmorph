@@ -1,38 +1,57 @@
 module Geometry exposing (..)
 
 import Math.Vector3 exposing (vec3, Vec3)
+import Math.Vector4 exposing (vec4, Vec4)
 import Color exposing (..)
 import Random
 
 
 type alias Vertex =
-    { color : Vec3
+    { color : Vec4
     , position : Vec3
     }
+
+
+colorToComponents : Color -> ( Float, Float, Float )
+colorToComponents rawColor =
+    let
+        c =
+            toRgb rawColor
+    in
+        ( toFloat c.red / 255
+        , toFloat c.green / 255
+        , toFloat c.blue / 255
+        )
 
 
 colorToVec3 : Color -> Vec3
 colorToVec3 rawColor =
     let
-        c =
-            toRgb rawColor
+        ( r, g, b ) =
+            colorToComponents rawColor
     in
-        vec3
-            (toFloat c.red / 255)
-            (toFloat c.green / 255)
-            (toFloat c.blue / 255)
+        vec3 r g b
+
+
+colorToVec4 : Float -> Color -> Vec4
+colorToVec4 alpha rawColor =
+    let
+        ( r, g, b ) =
+            colorToComponents rawColor
+    in
+        vec4 r g b alpha
 
 
 gl_orange =
-    colorToVec3 orange
+    colorToVec4 1 orange
 
 
 gl_yellow =
-    colorToVec3 yellow
+    colorToVec4 1 yellow
 
 
 gl_red =
-    colorToVec3 red
+    colorToVec4 1 red
 
 
 line : Int -> Float -> Float -> Float -> List Vertex
@@ -94,7 +113,7 @@ face : Color -> Vec3 -> Vec3 -> Vec3 -> Vec3 -> List ( Vertex, Vertex, Vertex )
 face rawColor a b c d =
     let
         color =
-            colorToVec3 rawColor
+            colorToVec4 1 rawColor
 
         vertex position =
             Vertex color position
@@ -106,9 +125,9 @@ face rawColor a b c d =
 
 trianglePoints : Float -> List Vertex
 trianglePoints pos =
-    [ Vertex (vec3 1 0.5 0) (vec3 pos 0 0)
-    , Vertex (vec3 1 1 0) (vec3 0 pos 0)
-    , Vertex (vec3 1 -1 0) (vec3 0 0 pos)
+    [ Vertex (vec4 1 0.5 0 1) (vec3 pos 0 0)
+    , Vertex (vec4 1 1 0 1) (vec3 0 pos 0)
+    , Vertex (vec4 1 -1 0 1) (vec3 0 0 pos)
     ]
 
 
