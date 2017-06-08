@@ -10,3 +10,5 @@ uses https://github.com/tomekwi/elm-live
 or with elm reactor
 
 `elm-reactor`
+
+![Screenshot](screenshot.png)
