@@ -32,6 +32,8 @@ import Morph exposing (morph)
 -- import Random <- totally borked
 
 import Random.Pcg as Random
+import Random as NativeRandom
+import Random.List exposing (shuffle)
 
 
 -- MODEL
@@ -41,7 +43,9 @@ type Msg
     = TextureLoaded (Result Error Texture)
     | Animate Time
     | Resize Window.Size
+    | GeneratedGeometry (List (List Vertex))
     | PickedRandom Int
+    | RandomizedDestination (List Vertex)
     | Presses Char
 
 
@@ -52,28 +56,40 @@ type alias Model =
     , source : List Vertex
     , destination : List Vertex
     , texture : Maybe Texture
+    , geometries : List (List Vertex)
     }
 
 
 
 -- INIT
+-- TODO dont pick an index but a geometry
 
 
-randomGeometryIndex =
-    Random.int 0 ((List.length geometries) - 1)
+pickRandomCmd : Model -> Cmd Msg
+pickRandomCmd model =
+    Random.generate PickedRandom (randomGeometryIndex (List.length model.geometries))
+
+
+randomGeometryIndex geometriesLength =
+    Random.int 0 (geometriesLength - 1)
 
 
 init : ( Model, Cmd Msg )
 init =
-    ( Model (Window.Size 0 0) 0 0 [] [] Nothing
-      -- does the batch order matter? used to be tho other way in the example
-    , Cmd.batch
-        [ Task.perform Resize Window.size
+    let
+        model =
+            Model (Window.Size 0 0) 0 0 [] [] Nothing geometries
+    in
+        ( model
+          -- does the batch order matter? used to be tho other way in the example
+        , Cmd.batch
+            [ Task.perform Resize Window.size
 
-        --, Task.attempt TextureLoaded (Texture.load "texture/wood-crate.jpg")
-        , Random.generate PickedRandom randomGeometryIndex
-        ]
-    )
+            --, Task.attempt TextureLoaded (Texture.load "texture/wood-crate.jpg")
+            , pickRandomCmd model
+            , NativeRandom.generate GeneratedGeometry geometries2
+            ]
+        )
 
 
 
@@ -130,7 +146,7 @@ update action model =
 
                 cmd =
                     if morphStage == 1 then
-                        Random.generate PickedRandom randomGeometryIndex
+                        pickRandomCmd model
                     else
                         Cmd.none
             in
@@ -144,14 +160,23 @@ update action model =
                 -- TODO exclude current geometry
                 -- TODO we might want to shuffle the points first
                 destination =
-                    Maybe.withDefault [] (Array.get index (Array.fromList geometries))
+                    Maybe.withDefault [] (Array.get index (Array.fromList model.geometries))
+
+                updatedMode =
+                    { model | source = model.destination, destination = destination, morphStage = 0 }
             in
-                ( { model | source = model.destination, destination = destination, morphStage = 0 }, Cmd.none )
+                ( updatedMode, NativeRandom.generate RandomizedDestination (shuffle destination) )
+
+        RandomizedDestination destination ->
+            ( { model | destination = destination }, Cmd.none )
+
+        GeneratedGeometry geometries ->
+            ( { model | geometries = geometries }, Cmd.none )
 
         Presses code ->
             case code of
                 ' ' ->
-                    ( model, Random.generate PickedRandom randomGeometryIndex )
+                    ( model, pickRandomCmd model )
 
                 _ ->
                     ( model, Cmd.none )

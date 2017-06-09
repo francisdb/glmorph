@@ -1,9 +1,10 @@
 module Geometry exposing (..)
 
-import Math.Vector3 exposing (vec3, Vec3)
+import Math.Vector3 exposing (vec3, Vec3, getX, getY, getZ)
 import Math.Vector4 exposing (vec4, Vec4)
 import Color exposing (..)
 import Random
+import Random.List
 
 
 type alias Vertex =
@@ -40,6 +41,24 @@ colorToVec4 alpha rawColor =
             colorToComponents rawColor
     in
         vec4 r g b alpha
+
+
+vec3ToVec4 : Float -> Vec3 -> Vec4
+vec3ToVec4 alpha input =
+    let
+        x =
+            getX input
+
+        y =
+            getY input
+
+        z =
+            getZ input
+
+        w =
+            alpha
+    in
+        vec4 x y z w
 
 
 gl_orange =
@@ -99,28 +118,45 @@ cylinder count rows radius spacing =
 -- TODO spiral
 -- TODO sphere using circles
 -- TODO random cloud
---floatList : Random.Generator (List Float)
---floatList =
---    Random.list 10 (Random.float 0 1)
---
---randomCloud : Int -> List Vertex
---randomCloud count =
---    List.range 0 count
---        |> List.map (\z -> Vertex gl_orange (vec3 randomFloat.generate randomFloat.generate randomFloat.generate))
 
 
-face : Color -> Vec3 -> Vec3 -> Vec3 -> Vec3 -> List ( Vertex, Vertex, Vertex )
-face rawColor a b c d =
+ff : a -> ( Maybe a, List a ) -> a
+ff default tuple =
+    case tuple of
+        ( Nothing, _ ) ->
+            default
+
+        ( Just c, _ ) ->
+            c
+
+
+randomColorPick : List Color -> Random.Generator Vec4
+randomColorPick colors =
     let
-        color =
-            colorToVec4 1 rawColor
-
-        vertex position =
-            Vertex color position
+        toVec =
+            \c -> colorToVec4 1 c
     in
-        [ ( vertex a, vertex b, vertex c )
-        , ( vertex c, vertex d, vertex a )
-        ]
+        Random.map toVec (Random.map (ff red) (Random.List.choose colors))
+
+
+randomColor : Random.Generator Vec4
+randomColor =
+    Random.map (vec3ToVec4 1) (randomVec3 0 1)
+
+
+randomVec3 : Float -> Float -> Random.Generator Vec3
+randomVec3 min max =
+    Random.map3 vec3 (Random.float min max) (Random.float min max) (Random.float min max)
+
+
+randomVertex : Float -> Random.Generator Vec4 -> Random.Generator Vertex
+randomVertex size colorPicker =
+    Random.map2 Vertex colorPicker (randomVec3 -size size)
+
+
+randomCloud : Int -> Float -> Random.Generator Vec4 -> Random.Generator (List Vertex)
+randomCloud count size colorPicker =
+    Random.list count (randomVertex size colorPicker)
 
 
 trianglePoints : Float -> List Vertex
@@ -149,3 +185,8 @@ geometries =
     --, trianglePoints 1
     --, randomCloud 100
     ]
+
+
+geometries2 : Random.Generator (List (List Vertex))
+geometries2 =
+    Random.map (\g -> g :: geometries) (randomCloud 1000 1 (randomColorPick [ red, orange, yellow ]))
