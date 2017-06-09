@@ -174,7 +174,12 @@ drawable model =
 
 scene : Model -> List Entity
 scene model =
-    [ WebGL.entity vertexShader fragmentShader (drawable model) (uniforms model)
+    [ WebGL.entityWith
+        [ Blend.add Blend.srcAlpha Blend.one ]
+        vertexShader
+        fragmentShader
+        (drawable model)
+        (uniforms model)
 
     --, render vertexShader fragmentShader wireFrame (uniforms model)
     ]
