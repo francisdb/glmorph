@@ -3,7 +3,7 @@ Elm WebGL morphing particle system
 
 ## running in dev mode
 
-`elm-live Main.elm --open`
+`elm-live src/Main.elm --open`
 
 uses https://github.com/tomekwi/elm-live
 
