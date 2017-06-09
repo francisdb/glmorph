@@ -11,4 +11,4 @@ or with elm reactor
 
 `elm-reactor`
 
-![Screenshot](screenshot.png)
+![Screenshot](https://media.giphy.com/media/3ohzdHlHJMpgW5IoXC/giphy.gif)

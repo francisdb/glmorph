@@ -43,9 +43,9 @@ type Msg
     = TextureLoaded (Result Error Texture)
     | Animate Time
     | Resize Window.Size
-    | GeneratedGeometry (List (List Vertex))
+    | GeneratedObjects (List Object)
     | PickedRandom Int
-    | RandomizedDestination (List Vertex)
+    | RandomizedDestination Object
     | Presses Char
 
 
@@ -53,10 +53,10 @@ type alias Model =
     { size : Window.Size
     , theta : Float
     , morphStage : Float
-    , source : List Vertex
-    , destination : List Vertex
+    , source : Object
+    , destination : Object
     , texture : Maybe Texture
-    , geometries : List (List Vertex)
+    , objects : List Object
     }
 
 
@@ -67,7 +67,7 @@ type alias Model =
 
 pickRandomCmd : Model -> Cmd Msg
 pickRandomCmd model =
-    Random.generate PickedRandom (randomGeometryIndex (List.length model.geometries))
+    Random.generate PickedRandom (randomGeometryIndex (List.length model.objects))
 
 
 randomGeometryIndex geometriesLength =
@@ -78,7 +78,7 @@ init : ( Model, Cmd Msg )
 init =
     let
         model =
-            Model (Window.Size 0 0) 0 0 [] [] Nothing geometries
+            Model (Window.Size 0 0) 0 0 [] [] Nothing objects
     in
         ( model
           -- does the batch order matter? used to be tho other way in the example
@@ -87,7 +87,7 @@ init =
 
             --, Task.attempt TextureLoaded (Texture.load "texture/wood-crate.jpg")
             , pickRandomCmd model
-            , NativeRandom.generate GeneratedGeometry geometries2
+            , NativeRandom.generate GeneratedObjects objectsGen
             ]
         )
 
@@ -142,7 +142,7 @@ update action model =
                     model.theta + dt / 1000
 
                 morphStage =
-                    min 1 (model.morphStage + dt / 2000)
+                    min 1 (model.morphStage + dt / 3000)
 
                 cmd =
                     if morphStage == 1 then
@@ -160,7 +160,7 @@ update action model =
                 -- TODO exclude current geometry
                 -- TODO we might want to shuffle the points first
                 destination =
-                    Maybe.withDefault [] (Array.get index (Array.fromList model.geometries))
+                    Maybe.withDefault [] (Array.get index (Array.fromList model.objects))
 
                 updatedMode =
                     { model | source = model.destination, destination = destination, morphStage = 0 }
@@ -170,8 +170,8 @@ update action model =
         RandomizedDestination destination ->
             ( { model | destination = destination }, Cmd.none )
 
-        GeneratedGeometry geometries ->
-            ( { model | geometries = geometries }, Cmd.none )
+        GeneratedObjects objects ->
+            ( { model | objects = objects }, Cmd.none )
 
         Presses code ->
             case code of
@@ -192,9 +192,43 @@ main =
         }
 
 
+
+-- from https://github.com/alexeisavca/keyframes.elm/blob/1.0.0/src/Keyframes/Easing.elm
+
+
+{-| Ease in and out cubically
+-}
+easeInOutCubic : Float -> Float
+easeInOutCubic currentTime =
+    let
+        totalTime =
+            1
+
+        value =
+            0
+
+        change =
+            1
+
+        t =
+            currentTime / (totalTime / 2)
+
+        t2 =
+            t - 2
+    in
+        if t < 1 then
+            change / 2 * t ^ 3 + value
+        else
+            change / 2 * (t2 ^ 3 + 2) + value
+
+
 drawable : Model -> Mesh Vertex
 drawable model =
-    points (morph model.morphStage model.source model.destination)
+    let
+        tweened =
+            easeInOutCubic model.morphStage
+    in
+        points (morph tweened model.source model.destination)
 
 
 scene : Model -> List Entity
