@@ -4,7 +4,7 @@ module General exposing (zip, zipFill)
 list. It combines the elements of each list pairwise until one
 of the lists runs out of elements.
 
-    zip [1,2,3] ['a','b','c'] == [(1,'a'), (2,'b'), (3,'c')]
+    zip [ 1, 2, 3 ] [ 'a', 'b', 'c' ] == [ ( 1, 'a' ), ( 2, 'b' ), ( 3, 'c' ) ]
 
 -}
 
@@ -23,18 +23,18 @@ zipFill : (( Maybe a, Maybe a ) -> a) -> List a -> List a -> List ( a, a )
 zipFill filler xs ys =
     -- this could probably be smarter
     let
-        zip =
+        zipF =
             zipFill filler
     in
-        case ( xs, ys ) of
-            ( x :: xtail, y :: ytail ) ->
-                ( x, y ) :: zip xtail ytail
+    case ( xs, ys ) of
+        ( x :: xtail, y :: ytail ) ->
+            ( x, y ) :: zipF xtail ytail
 
-            ( [], y :: ytail ) ->
-                ( filler ( Nothing, Just y ), y ) :: zip [] ytail
+        ( [], y :: ytail ) ->
+            ( filler ( Nothing, Just y ), y ) :: zipF [] ytail
 
-            ( x :: xtail, [] ) ->
-                ( x, filler ( Just x, Nothing ) ) :: zip xtail []
+        ( x :: xtail, [] ) ->
+            ( x, filler ( Just x, Nothing ) ) :: zipF xtail []
 
-            ( _, _ ) ->
-                []
+        ( _, _ ) ->
+            []
