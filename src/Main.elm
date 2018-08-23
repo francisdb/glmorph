@@ -1,6 +1,5 @@
 module Main exposing (Model, Msg(..), Uniforms, drawable, easeInOutCubic, fragmentShader, init, main, pickRandomCmd, randomGeometryIndex, scene, subscriptions, uniforms, update, vertexShader, view)
 
---import Random.List exposing (shuffle)
 -- import AnimationFrame
 
 import Array
@@ -19,8 +18,8 @@ import Math.Vector4 exposing (Vec4, getW, setW, vec4)
 import MathExt exposing (mix, mixColor)
 import Morph exposing (morph)
 import Random
+import Random.List exposing (shuffle)
 import Task
-import Time exposing (Time)
 import WebGL exposing (Entity, Mesh, Shader, lineLoop, points, triangles)
 import WebGL.Settings.Blend as Blend
 import WebGL.Settings.DepthTest as DepthTest

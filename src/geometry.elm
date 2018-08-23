@@ -1,12 +1,11 @@
 module Geometry exposing (Object, Vertex, chooseResultWithDefault, circle, colorToComponents, colorToVec3, colorToVec4, crossPoints, cylinder, filledCube, gl_orange, gl_red, gl_yellow, line, objects, objectsGen, randomCloud, randomColor, randomColorPick, randomVec3, randomVertex, sphere, square, trianglePoints, vec3ToVec4)
 
---import Random.List
-
 import Color exposing (..)
 import List.Extra exposing (uniqueBy)
 import Math.Vector3 exposing (Vec3, getX, getY, getZ, toRecord, vec3)
 import Math.Vector4 exposing (Vec4, vec4)
 import Random
+import Random.List exposing (choose)
 import Set
 import Sphere exposing (..)
 
@@ -200,7 +199,7 @@ sphere iterations =
             List.concat verticesLists
 
         uniqueVertices =
-            uniqueBy toRecord vertices
+            uniqueBy toTuple vertices
     in
     List.map (Vertex gl_yellow) uniqueVertices
 
@@ -224,3 +223,19 @@ objects =
 objectsGen : Random.Generator (List Object)
 objectsGen =
     Random.map (\g -> g :: objects) (randomCloud 1000 1 (randomColorPick [ red, orange, yellow ]))
+
+
+
+-- used to be in the core Library
+-- got it from https://github.com/johnpmayer/elm-linear-algebra/blob/c60cc6f411ff6ccf151ee5789ab826690382a1d5/src/Math/Vector3.elm
+
+
+{-| Convert a vector to a tuple.
+-}
+toTuple : Vec3 -> ( Float, Float, Float )
+toTuple v =
+    let
+        record =
+            toRecord v
+    in
+    ( record.x, record.y, record.z )
