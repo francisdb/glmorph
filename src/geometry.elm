@@ -1,13 +1,13 @@
-module Geometry exposing (..)
+module Geometry exposing (Object, Vertex, chooseResultWithDefault, circle, colorToComponents, colorToVec3, colorToVec4, crossPoints, cylinder, filledCube, gl_orange, gl_red, gl_yellow, line, objects, objectsGen, randomCloud, randomColor, randomColorPick, randomVec3, randomVertex, sphere, square, trianglePoints, vec3ToVec4)
 
-import Math.Vector3 exposing (vec3, Vec3, getX, getY, getZ, toTuple)
-import Math.Vector4 exposing (vec4, Vec4)
 import Color exposing (..)
+import List.Extra exposing (uniqueBy)
+import Math.Vector3 exposing (Vec3, getX, getY, getZ, toRecord, vec3)
+import Math.Vector4 exposing (Vec4, vec4)
 import Random
-import Random.List
+import Random.List exposing (choose)
 import Set
 import Sphere exposing (..)
-import List.Extra exposing (uniqueBy)
 
 
 type alias Vertex =
@@ -26,10 +26,10 @@ colorToComponents rawColor =
         c =
             toRgb rawColor
     in
-        ( toFloat c.red / 255
-        , toFloat c.green / 255
-        , toFloat c.blue / 255
-        )
+    ( toFloat c.red / 255
+    , toFloat c.green / 255
+    , toFloat c.blue / 255
+    )
 
 
 colorToVec3 : Color -> Vec3
@@ -38,7 +38,7 @@ colorToVec3 rawColor =
         ( r, g, b ) =
             colorToComponents rawColor
     in
-        vec3 r g b
+    vec3 r g b
 
 
 colorToVec4 : Float -> Color -> Vec4
@@ -47,7 +47,7 @@ colorToVec4 alpha rawColor =
         ( r, g, b ) =
             colorToComponents rawColor
     in
-        vec4 r g b alpha
+    vec4 r g b alpha
 
 
 vec3ToVec4 : Float -> Vec3 -> Vec4
@@ -65,7 +65,7 @@ vec3ToVec4 alpha input =
         w =
             alpha
     in
-        vec4 x y z w
+    vec4 x y z w
 
 
 gl_orange =
@@ -82,16 +82,16 @@ gl_red =
 
 line : Color -> Int -> Float -> Float -> Float -> Object
 line color count spacing z y =
-    (List.range (negate (count // 2)) (count // 2))
-        |> List.map (\x -> (toFloat x) * spacing)
+    List.range (negate (count // 2)) (count // 2)
+        |> List.map (\x -> toFloat x * spacing)
         |> List.map
             (\x -> Vertex (colorToVec4 1 color) (vec3 x y z))
 
 
 square : Color -> Int -> Float -> Float -> Object
 square color count spacing z =
-    (List.range (negate (count // 2)) (count // 2))
-        |> List.map (\y -> (toFloat y) * spacing)
+    List.range (negate (count // 2)) (count // 2)
+        |> List.map (\y -> toFloat y * spacing)
         |> List.concatMap
             (line color count spacing z)
 
@@ -99,7 +99,7 @@ square color count spacing z =
 filledCube : Color -> Int -> Float -> Object
 filledCube color count spacing =
     List.range (negate (count // 2)) (count // 2)
-        |> List.map (\z -> (toFloat z) * spacing)
+        |> List.map (\z -> toFloat z * spacing)
         |> List.concatMap
             (square color count spacing)
 
@@ -107,15 +107,15 @@ filledCube color count spacing =
 circle : Int -> Float -> Float -> Object
 circle count radius z =
     List.range 0 count
-        |> List.map (\c -> (toFloat c) * 2 * pi / (toFloat count))
+        |> List.map (\c -> toFloat c * 2 * pi / toFloat count)
         |> List.map
-            (\r -> Vertex gl_red (vec3 ((sin r) * radius) ((cos r) * radius) z))
+            (\r -> Vertex gl_red (vec3 (sin r * radius) (cos r * radius) z))
 
 
 cylinder : Int -> Int -> Float -> Float -> Object
 cylinder count rows radius spacing =
     List.range 0 rows
-        |> List.map (\z -> (toFloat z) * spacing - (spacing * toFloat rows) / 2.0)
+        |> List.map (\z -> toFloat z * spacing - (spacing * toFloat rows) / 2.0)
         |> List.concatMap
             (circle count radius)
 
@@ -142,7 +142,7 @@ randomColorPick colors =
         toVec =
             \c -> colorToVec4 1 c
     in
-        Random.map toVec (Random.map (chooseResultWithDefault red) (Random.List.choose colors))
+    Random.map toVec (Random.map (chooseResultWithDefault red) (Random.List.choose colors))
 
 
 randomColor : Random.Generator Vec4
@@ -175,7 +175,7 @@ trianglePoints pos =
 
 crossPoints : Object
 crossPoints =
-    (List.range -30 30)
+    List.range -30 30
         |> List.concatMap
             (\n -> trianglePoints (toFloat n / 10.0))
 
@@ -201,7 +201,7 @@ sphere iterations =
         uniqueVertices =
             uniqueBy toTuple vertices
     in
-        List.map (Vertex gl_yellow) uniqueVertices
+    List.map (Vertex gl_yellow) uniqueVertices
 
 
 objects : List Object
@@ -223,3 +223,19 @@ objects =
 objectsGen : Random.Generator (List Object)
 objectsGen =
     Random.map (\g -> g :: objects) (randomCloud 1000 1 (randomColorPick [ red, orange, yellow ]))
+
+
+
+-- used to be in the core Library
+-- got it from https://github.com/johnpmayer/elm-linear-algebra/blob/c60cc6f411ff6ccf151ee5789ab826690382a1d5/src/Math/Vector3.elm
+
+
+{-| Convert a vector to a tuple.
+-}
+toTuple : Vec3 -> ( Float, Float, Float )
+toTuple v =
+    let
+        record =
+            toRecord v
+    in
+    ( record.x, record.y, record.z )

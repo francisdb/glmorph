@@ -1,10 +1,10 @@
-module Morph exposing (..)
+module Morph exposing (center, defaultColorInvisible, interpolateVertex, morph, sq)
 
 import General exposing (zipFill)
-import Geometry exposing (Vertex, gl_red, Object)
+import Geometry exposing (Object, Vertex, gl_red)
 import Math.Vector3 as V3 exposing (vec3)
 import Math.Vector4 exposing (setW)
-import MathExt exposing (mixColor, mix)
+import MathExt exposing (mix, mixColor)
 
 
 defaultColorInvisible =
@@ -12,7 +12,7 @@ defaultColorInvisible =
 
 
 center =
-    (vec3 0 0 0)
+    vec3 0 0 0
 
 
 interpolateVertex : Float -> Vertex -> Vertex -> Vertex
@@ -24,7 +24,7 @@ interpolateVertex interpolation source destination =
         color =
             mixColor interpolation source.color destination.color
     in
-        Vertex color position
+    Vertex color position
 
 
 sq a =
@@ -38,10 +38,10 @@ morph interpolation source destination =
             \tuple ->
                 case tuple of
                     ( Just src, Nothing ) ->
-                        Vertex defaultColorInvisible (V3.scale ((sq interpolation) * 3) src.position)
+                        Vertex defaultColorInvisible (V3.scale (sq interpolation * 3) src.position)
 
                     ( Nothing, Just dest ) ->
-                        Vertex defaultColorInvisible (V3.scale ((sqrt (1 - interpolation)) * 3) dest.position)
+                        Vertex defaultColorInvisible (V3.scale (sqrt (1 - interpolation) * 3) dest.position)
 
                     _ ->
                         Vertex defaultColorInvisible center
@@ -50,4 +50,4 @@ morph interpolation source destination =
             -- we want this randomized
             zipFill filler source destination
     in
-        List.map (\( a, b ) -> interpolateVertex interpolation a b) zipped
+    List.map (\( a, b ) -> interpolateVertex interpolation a b) zipped

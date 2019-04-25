@@ -1,6 +1,7 @@
-module Sphere exposing (..)
+module Sphere exposing (divide, divideSphere, octahedron)
 
-import Math.Vector3 exposing (Vec3, vec3, add, normalize)
+import Math.Vector3 exposing (Vec3, add, normalize, vec3)
+
 
 
 -- From https://github.com/w0rm/elm-webgl-playground/blob/master/Planet3D.elm
@@ -11,6 +12,7 @@ divideSphere : Int -> List ( Vec3, Vec3, Vec3 ) -> List ( Vec3, Vec3, Vec3 )
 divideSphere step triangles =
     if step <= 0 then
         triangles
+
     else
         divideSphere (step - 1) (List.concatMap divide triangles)
 
@@ -37,7 +39,7 @@ divide ( v0, v1, v2 ) =
         c =
             add v1 v2 |> normalize
     in
-        [ ( v0, b, a ), ( b, v1, c ), ( a, b, c ), ( a, c, v2 ) ]
+    [ ( v0, b, a ), ( b, v1, c ), ( a, b, c ), ( a, c, v2 ) ]
 
 
 
