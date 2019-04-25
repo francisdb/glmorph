@@ -4,14 +4,22 @@ module Main exposing (Model, Msg(..), Uniforms, drawable, easeInOutCubic, fragme
 
 import Array
 import Basics exposing (negate)
-import Browser
+import Browser exposing (Document)
+import Browser.Dom exposing (Viewport, getViewport)
+import Browser.Events exposing (onAnimationFrameDelta, onKeyPress, onResize)
 import Char exposing (fromCode)
 import Color exposing (..)
+import Css exposing (margin, px)
+import Css.Global exposing (body, global)
 import Debug as Debug
 import General exposing (zipFill)
 import Geometry exposing (..)
 import Html exposing (Html)
 import Html.Attributes exposing (height, width)
+import Html.Styled exposing (..)
+import Html.Styled.Attributes exposing (css, href, src)
+import Html.Styled.Events exposing (onClick)
+import Json.Decode as Decode
 import Math.Matrix4 as Mat4 exposing (Mat4, makeLookAt, makePerspective, makeRotate, mul)
 import Math.Vector3 exposing (Vec3, add, scale, sub, vec3)
 import Math.Vector4 exposing (Vec4, getW, setW, vec4)
@@ -20,6 +28,7 @@ import Morph exposing (morph)
 import Random
 import Random.List exposing (shuffle)
 import Task
+import Time exposing (Posix)
 import WebGL exposing (Entity, Mesh, Shader, lineLoop, points, triangles)
 import WebGL.Settings.Blend as Blend
 import WebGL.Settings.DepthTest as DepthTest
@@ -31,18 +40,25 @@ import WebGL.Texture as Texture exposing (Error, Texture)
 -- MODEL
 
 
+type alias Size =
+    { width : Int
+    , height : Int
+    }
+
+
 type Msg
     = TextureLoaded (Result Error Texture)
-    | Animate Time
-    | Resize Window.Size
+    | Animate Float
+    | Resize Size
+    | GotViewport Viewport
     | GeneratedObjects (List Object)
     | PickedRandom Int
     | RandomizedDestination Object
-    | Presses Char
+    | Presses String
 
 
 type alias Model =
-    { size : Window.Size
+    { size : Size
     , theta : Float
     , morphStage : Float
     , source : Object
@@ -66,18 +82,16 @@ randomGeometryIndex geometriesLength =
     Random.int 0 (geometriesLength - 1)
 
 
-init : ( Model, Cmd Msg )
-init =
+init : flags -> ( Model, Cmd Msg )
+init _ =
     let
         model =
-            Model (Window.Size 0 0) 0 0 [] [] Nothing objects
+            Model (Size 0 0) 0 0 [] [] Nothing objects
     in
     ( model
       -- does the batch order matter? used to be tho other way in the example
     , Cmd.batch
-        [ Task.perform Resize Window.size
-
-        --, Task.attempt TextureLoaded (Texture.load "texture/wood-crate.jpg")
+        [ Task.perform GotViewport Browser.Dom.getViewport
         , pickRandomCmd model
         , Random.generate GeneratedObjects objectsGen
         ]
@@ -88,15 +102,28 @@ init =
 -- VIEW
 
 
-view : Model -> Html Msg
-view model =
-    WebGL.toHtml
-        [ width model.size.width
-        , height model.size.height
-        , Html.Attributes.style "display" "block"
-        , Html.Attributes.style "background-color" "#202"
+globalStyleNode : Html.Html msg
+globalStyleNode =
+    global
+        [ body
+            [ margin (px 0)
+            ]
         ]
-        (scene model)
+        |> toUnstyled
+
+
+view : Model -> Document Msg
+view model =
+    Document "morph"
+        [ globalStyleNode
+        , WebGL.toHtml
+            [ width model.size.width
+            , height model.size.height
+            , Html.Attributes.style "display" "block"
+            , Html.Attributes.style "background-color" "#202"
+            ]
+            (scene model)
+        ]
 
 
 type alias Uniforms =
@@ -111,17 +138,21 @@ type alias Uniforms =
 -- SUBSCRIPTIONS
 
 
+keyDecoder : Decode.Decoder Msg
+keyDecoder =
+    Decode.map Presses (Decode.field "key" Decode.string)
+
+
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    [ AnimationFrame.diffs Animate
-
-    --        , Keyboard.downs (keyChange True)
-    --        , Keyboard.ups (keyChange False)
-    , Window.resizes Resize
-    , Keyboard.presses (\code -> Presses (fromCode code))
+    [ onAnimationFrameDelta Animate
+    , onResize (\w h -> Resize (Size w h))
+    , onKeyPress keyDecoder
     ]
         |> Sub.batch
 
+viewPortToSize : Viewport -> Size
+viewPortToSize vp = Size (round vp.viewport.width) (round vp.viewport.height)
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update action model =
@@ -149,6 +180,9 @@ update action model =
         Resize size ->
             ( { model | size = size }, Cmd.none )
 
+        GotViewport vp ->
+            ( { model | size = viewPortToSize vp }, Cmd.none )
+
         PickedRandom index ->
             let
                 -- TODO exclude current geometry
@@ -169,25 +203,25 @@ update action model =
 
         Presses code ->
             case code of
-                ' ' ->
+                " " ->
                     ( model, pickRandomCmd model )
 
                 _ ->
                     ( model, Cmd.none )
 
 
-main : Program Never Model Msg
+type alias Flags =
+    ()
+
+
+main : Program Flags Model Msg
 main =
-    Html.program
+    Browser.document
         { init = init
         , view = view
         , subscriptions = subscriptions
         , update = update
         }
-
-
-
--- from https://github.com/alexeisavca/keyframes.elm/blob/1.0.0/src/Keyframes/Easing.elm
 
 
 {-| Ease in and out cubically
@@ -266,8 +300,8 @@ varying float zshade;
 void main () {
     gl_Position = perspective * camera * rotation * vec4(position, 1.0);
     vcolor = color;
-    zshade = ((rotation * vec4(position, 1.0)).z + 1.5 ) * 0.3;
-    gl_PointSize = zshade * 9.0;
+    zshade = ((rotation * vec4(position, 1.0)).z + 1.5 ) * 0.4;
+    gl_PointSize = zshade * 12.0;
 }
 
 |]
