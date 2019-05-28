@@ -14,7 +14,7 @@
             "elm/time": "1.0.0",
             "elm-community/list-extra": "8.2.0",
             "elm-community/random-extra": "3.1.0",
-            "elm-explorations/linear-algebra": "1.0.0",
+            "elm-explorations/linear-algebra": "1.0.3",
             "elm-explorations/webgl": "1.1.0",
             "rtfeldman/elm-css": "16.0.1"
         },
