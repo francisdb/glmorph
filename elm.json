@@ -16,7 +16,7 @@
             "elm-community/random-extra": "3.1.0",
             "elm-explorations/linear-algebra": "1.0.3",
             "elm-explorations/webgl": "1.1.2",
-            "rtfeldman/elm-css": "16.0.1"
+            "rtfeldman/elm-css": "16.0.2"
         },
         "indirect": {
             "Skinney/murmur3": "2.0.8",
