@@ -1,6 +1,8 @@
 # glmorph
 Elm WebGL morphing particle system
 
+[![CI](https://github.com/francisdb/glmorph/workflows/CI/badge.svg)](https://github.com/francisdb/glmorph/actions)
+
 ## running in dev mode
 
 `elm-live src/Main.elm --open`
