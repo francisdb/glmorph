@@ -16,7 +16,7 @@
             "elm-community/random-extra": "3.2.0",
             "elm-explorations/linear-algebra": "1.0.3",
             "elm-explorations/webgl": "1.1.3",
-            "rtfeldman/elm-css": "17.1.1"
+            "rtfeldman/elm-css": "18.0.0"
         },
         "indirect": {
             "elm/url": "1.0.0",
